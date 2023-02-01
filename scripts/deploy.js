@@ -15,8 +15,8 @@ async function sleep(ms) {
 }
 
 async function main() {
-  const HelloWorld = await hre.ethers.getContractFactory("HelloWorld");
-  const contract = await HelloWorld.deploy();
+  const TheVault = await hre.ethers.getContractFactory("TheVault");
+  const contract = await TheVault.deploy();
 
   await contract.deployed();
 
