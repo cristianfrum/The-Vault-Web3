@@ -30,14 +30,19 @@ contract TheVault {
         mapping(address => Member) members;
     }
 
-    function initializeWallet(string memory walletName, Member[] memory initialMembers, string memory name) public {
+    function getWalletNameById(uint8 walletId) public returns (string memory) {
+        return wallet[walletId].name;
+    }
+
+    function initializeWallet(string memory name) public {
         Wallet storage newWallet = wallet[walletCounter];
         newWallet.walletId = walletCounter++;
         newWallet.creationDate = block.timestamp;
         newWallet.name = name;
 
-        for (uint i = 0; i < initialMembers.length; i++) {
+      /*  for (uint i = 0; i < initialMembers.length; i++) {
             newWallet.members[initialMembers[i].currentAddress] = initialMembers[i];
         }
+      */
     }
 }
