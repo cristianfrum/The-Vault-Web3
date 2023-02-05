@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 contract TheVault {
-    mapping(uint8 => Wallet) public wallet;
+    mapping(string => Wallet) public wallet;
     uint8 public walletCounter;
 
     struct Transaction {
@@ -16,29 +16,34 @@ contract TheVault {
         string firstName;
         string lastName;
         address currentAddress;
-        uint8 walletId;
+        uint8 id;
         uint8 balance;
         uint8 withdrawalLimit;
     }
 
     struct Wallet {
-        uint8 walletId;
-        uint256 creationDate;
+        uint8 id;
+        uint creationDate;
         string name;
-        uint8 balance;
+        uint balance;
         Transaction[] transactionHistory;
         mapping(address => Member) members;
     }
 
-    function getWalletNameById(uint8 walletId) public returns (string memory) {
-        return wallet[walletId].name;
+    function getWalletId(string memory walletName) public view returns (uint8) {
+        return wallet[walletName].id;
     }
 
-    function initializeWallet(string memory name) public {
-        Wallet storage newWallet = wallet[walletCounter];
-        newWallet.walletId = walletCounter++;
+    function getWalletBalance(string memory walletName) public view returns (uint) {
+        return wallet[walletName].balance;
+    }
+
+    function initializeWallet(string memory walletName) public payable {
+        Wallet storage newWallet = wallet[walletName];
+        newWallet.id = walletCounter++;
         newWallet.creationDate = block.timestamp;
-        newWallet.name = name;
+        newWallet.name = walletName;
+        newWallet.balance = msg.value;
 
       /*  for (uint i = 0; i < initialMembers.length; i++) {
             newWallet.members[initialMembers[i].currentAddress] = initialMembers[i];
