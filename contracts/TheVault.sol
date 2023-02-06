@@ -16,36 +16,60 @@ contract TheVault {
         string firstName;
         string lastName;
         address currentAddress;
-        uint8 id;
+        uint256 walletId;
         uint8 balance;
         uint8 withdrawalLimit;
     }
 
     struct Wallet {
-        uint8 id;
-        uint creationDate;
+        uint256 id;
+        uint256 creationDate;
         string name;
-        uint balance;
+        uint256 balance;
         Transaction[] transactionHistory;
-        mapping(address => Member) members;
+        mapping(address => Member) member;
     }
 
-    function getWalletId(string memory walletName) public view returns (uint8) {
+    function getWalletId(string memory walletName)
+        public
+        view
+        returns (uint256)
+    {
         return wallet[walletName].id;
     }
 
-    function getWalletBalance(string memory walletName) public view returns (uint) {
+    function getWalletBalance(string memory walletName)
+        public
+        view
+        returns (uint256)
+    {
         return wallet[walletName].balance;
     }
 
-    function initializeWallet(string memory walletName) public payable {
+    function initializeWallet(
+        string memory walletName,
+        address[] memory membersAddresses,
+        string[] memory membersFirstNames,
+        string[] memory membersLastNames
+    ) public payable {
         Wallet storage newWallet = wallet[walletName];
-        newWallet.id = walletCounter++;
+        newWallet.id = walletCounter;
         newWallet.creationDate = block.timestamp;
         newWallet.name = walletName;
         newWallet.balance = msg.value;
 
-      /*  for (uint i = 0; i < initialMembers.length; i++) {
+        for (uint256 i = 0; i < membersAddresses.length; i++) {
+            Member storage newMember = newWallet.member[membersAddresses[i]];
+            newMember.firstName = membersFirstNames[i];
+            newMember.lastName = membersLastNames[i];
+            newMember.currentAddress = membersAddresses[i];
+            newMember.walletId = walletCounter;
+            newMember.balance = 0;
+            newMember.withdrawalLimit = 5;
+        }
+        walletCounter++;
+
+        /*  for (uint i = 0; i < initialMembers.length; i++) {
             newWallet.members[initialMembers[i].currentAddress] = initialMembers[i];
         }
       */
