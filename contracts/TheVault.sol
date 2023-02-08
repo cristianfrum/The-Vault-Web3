@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 contract TheVault {
     mapping(string => Wallet) public wallet;
-    mapping(address => uint256) public memberWalletId;
+    mapping(address => uint8) public memberWalletId;
     uint8 public walletCounter;
 
     struct Transaction {
@@ -17,27 +17,34 @@ contract TheVault {
         string firstName;
         string lastName;
         address currentAddress;
-        uint256 walletId;
+        uint8 walletId;
         uint256 balance;
         uint8 withdrawalLimit;
     }
 
     struct Wallet {
-        uint256 id;
+        uint8 id;
         uint256 creationDate;
         string name;
         uint256 balance;
         uint8 memberCounter;
+        address ownerAddress;
+        string ownerFirstName;
+        string ownerLastName;
         Transaction[] transactionHistory;
         mapping(uint8 => Member) members;
     }
 
-    function getWalletId(string memory walletName)
+    function getWalletId(string memory walletName) public view returns (uint8) {
+        return wallet[walletName].id;
+    }
+
+    function getWalletOwner(string memory walletName)
         public
         view
-        returns (uint256)
+        returns (address)
     {
-        return wallet[walletName].id;
+        return wallet[walletName].ownerAddress;
     }
 
     function getWalletBalance(string memory walletName)
@@ -83,16 +90,40 @@ contract TheVault {
         uint256 memberCounter
     ) {
         require(memberCounter > 0, "A wallet needs at least one user");
+
         for (uint256 i = 0; i < memberCounter; i++) {
             require(
                 memberWalletId[membersAddresses[i]] == 0,
                 "One or more users have already joined another wallet"
             );
+            for (uint256 j = 0; j < i; j++) {
+                revert("The wallet can not have duplicate addresses");
+            }
         }
         _;
     }
 
-    modifier checkWalletRedundancy(string memory walletName) {
+    modifier checkMemberNames(
+        string[] memory membersFirstNames,
+        string[] memory membersLastNames
+    ) {
+        require(
+            membersFirstNames.length == membersLastNames.length &&
+                membersFirstNames.length != 0,
+            "The users need to have both first and last names"
+        );
+        for (uint256 i = 0; i < membersFirstNames.length; i++) {
+            require(
+                bytes(membersFirstNames[i]).length != 0 &&
+                    bytes(membersLastNames[i]).length != 0,
+                "The users need to have both first and last names"
+            );
+        }
+        _;
+    }
+
+    modifier checkWalletName(string memory walletName) {
+        require(bytes(walletName).length != 0, "The wallet needs a name");
         require(wallet[walletName].id == 0, "A wallet already has this name");
         _;
     }
@@ -106,7 +137,8 @@ contract TheVault {
         public
         payable
         checkMemberRedundancy(membersAddresses, membersFirstNames.length)
-        checkWalletRedundancy(walletName)
+        checkWalletName(walletName)
+        checkMemberNames(membersFirstNames, membersLastNames)
     {
         // wallet id starts with 100 instead of 0 because users with memberWalletId set to 0 do not exist yet
         Wallet storage newWallet = wallet[walletName];
@@ -114,6 +146,9 @@ contract TheVault {
         newWallet.creationDate = block.timestamp;
         newWallet.name = walletName;
         newWallet.balance = msg.value;
+        newWallet.ownerAddress = membersAddresses[0];
+        newWallet.ownerFirstName = membersFirstNames[0];
+        newWallet.ownerLastName = membersLastNames[0];
 
         for (uint8 i = 0; i < membersAddresses.length; i++) {
             Member storage newMember = newWallet.members[i];
