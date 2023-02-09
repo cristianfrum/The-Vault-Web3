@@ -39,6 +39,10 @@ contract TheVault {
         return wallet[walletName].id;
     }
 
+    function getWallet(address memberAddress) public view returns (uint8) {
+        return memberWalletId[memberAddress];
+    }
+
     function getWalletOwner(string memory walletName)
         public
         view
