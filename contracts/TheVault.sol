@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 contract TheVault {
-    mapping(string => Wallet) public wallet;
+    mapping(uint8 => Wallet) public wallet;
     mapping(address => uint8) public memberWalletId;
     uint8 public walletCounter;
 
@@ -35,58 +35,50 @@ contract TheVault {
         mapping(uint8 => Member) members;
     }
 
-    function getWalletId(string memory walletName) public view returns (uint8) {
-        return wallet[walletName].id;
-    }
-
-    function getWallet(address memberAddress) public view returns (uint8) {
-        return memberWalletId[memberAddress];
-    }
-
-    function getWalletOwner(string memory walletName)
+    function getWalletData(address memberAddress)
         public
         view
-        returns (address)
-    {
-        return wallet[walletName].ownerAddress;
-    }
-
-    function getWalletBalance(string memory walletName)
-        public
-        view
-        returns (uint256)
-    {
-        return wallet[walletName].balance;
-    }
-
-    function getWalletMemberCounter(string memory walletName)
-        public
-        view
-        returns (uint8)
-    {
-        return wallet[walletName].memberCounter;
-    }
-
-    function getWalletMembers(string memory walletName)
-        public
-        view
-        returns (string[] memory)
+        returns (
+            uint8,
+            address,
+            uint256,
+            address[] memory,
+            string[] memory,
+            string[] memory
+        )
     {
         address[] memory membersAddresses = new address[](
-            wallet[walletName].memberCounter
+            wallet[memberWalletId[memberAddress]].memberCounter
         );
         string[] memory membersFirstNames = new string[](
-            wallet[walletName].memberCounter
+            wallet[memberWalletId[memberAddress]].memberCounter
         );
         string[] memory membersLastNames = new string[](
-            wallet[walletName].memberCounter
+            wallet[memberWalletId[memberAddress]].memberCounter
         );
-        for (uint8 i = 0; i < wallet[walletName].memberCounter; i++) {
-            membersFirstNames[i] = wallet[walletName].members[i].firstName;
-            membersLastNames[i] = wallet[walletName].members[i].lastName;
-            membersAddresses[i] = wallet[walletName].members[i].currentAddress;
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i++
+        ) {
+            membersFirstNames[i] = wallet[memberWalletId[memberAddress]]
+                .members[i]
+                .firstName;
+            membersLastNames[i] = wallet[memberWalletId[memberAddress]]
+                .members[i]
+                .lastName;
+            membersAddresses[i] = wallet[memberWalletId[memberAddress]]
+                .members[i]
+                .currentAddress;
         }
-        return membersFirstNames;
+        return (
+            memberWalletId[memberAddress],
+            wallet[memberWalletId[memberAddress]].ownerAddress,
+            wallet[memberWalletId[memberAddress]].balance,
+            membersAddresses,
+            membersFirstNames,
+            membersLastNames
+        );
     }
 
     modifier checkMemberRedundancy(
@@ -101,7 +93,10 @@ contract TheVault {
                 "One or more users have already joined another wallet"
             );
             for (uint256 j = 0; j < i; j++) {
-                revert("The wallet can not have duplicate addresses");
+                require(
+                    membersAddresses[i] != membersAddresses[j],
+                    "The wallet can not have duplicate addresses"
+                );
             }
         }
         _;
@@ -128,7 +123,6 @@ contract TheVault {
 
     modifier checkWalletName(string memory walletName) {
         require(bytes(walletName).length != 0, "The wallet needs a name");
-        require(wallet[walletName].id == 0, "A wallet already has this name");
         _;
     }
 
@@ -144,9 +138,9 @@ contract TheVault {
         checkWalletName(walletName)
         checkMemberNames(membersFirstNames, membersLastNames)
     {
-        // wallet id starts with 100 instead of 0 because users with memberWalletId set to 0 do not exist yet
-        Wallet storage newWallet = wallet[walletName];
-        newWallet.id = walletCounter + 100;
+        // wallet id starts with 10 instead of 0 because users with memberWalletId set to 0 do not exist yet
+        Wallet storage newWallet = wallet[walletCounter + 10];
+        newWallet.id = walletCounter + 10;
         newWallet.creationDate = block.timestamp;
         newWallet.name = walletName;
         newWallet.balance = msg.value;
@@ -159,7 +153,7 @@ contract TheVault {
             newMember.firstName = membersFirstNames[i];
             newMember.lastName = membersLastNames[i];
             newMember.currentAddress = membersAddresses[i];
-            newMember.walletId = walletCounter + 100;
+            newMember.walletId = walletCounter + 10;
             newMember.balance = 0;
             newMember.withdrawalLimit = 5;
             newWallet.memberCounter++;
