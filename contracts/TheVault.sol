@@ -35,6 +35,32 @@ contract TheVault {
         mapping(uint8 => Member) members;
     }
 
+    function leaveWallet(address memberAddress) public {
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i++
+        ) {
+            if (
+                wallet[memberWalletId[memberAddress]]
+                    .members[i]
+                    .currentAddress == memberAddress
+            ) {
+                wallet[memberWalletId[memberAddress]].members[i].firstName = "";
+                wallet[memberWalletId[memberAddress]].members[i].lastName = "";
+                wallet[memberWalletId[memberAddress]]
+                    .members[i]
+                    .currentAddress = address(0x0);
+                wallet[memberWalletId[memberAddress]].members[i].walletId = 0;
+                wallet[memberWalletId[memberAddress]].members[i].balance = 0;
+                wallet[memberWalletId[memberAddress]]
+                    .members[i]
+                    .withdrawalLimit = 0;
+            }
+        }
+        memberWalletId[memberAddress] = 0;
+    }
+
     function getWalletData(address memberAddress)
         public
         view
