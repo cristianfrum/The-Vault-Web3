@@ -31,7 +31,7 @@ contract TheVault {
         address ownerAddress;
         string ownerFirstName;
         string ownerLastName;
-        Transaction[] transactionHistory;
+        // Transaction[] transactionHistory;
         mapping(uint8 => Member) members;
     }
 
@@ -46,19 +46,27 @@ contract TheVault {
                     .members[i]
                     .currentAddress == memberAddress
             ) {
-                wallet[memberWalletId[memberAddress]].members[i].firstName = "";
-                wallet[memberWalletId[memberAddress]].members[i].lastName = "";
-                wallet[memberWalletId[memberAddress]]
-                    .members[i]
-                    .currentAddress = address(0x0);
-                wallet[memberWalletId[memberAddress]].members[i].walletId = 0;
-                wallet[memberWalletId[memberAddress]].members[i].balance = 0;
-                wallet[memberWalletId[memberAddress]]
-                    .members[i]
-                    .withdrawalLimit = 0;
+                wallet[memberWalletId[memberAddress]].members[i] = Member(
+                    "",
+                    "",
+                    address(0x0),
+                    0,
+                    0,
+                    0
+                );
             }
         }
+        wallet[memberWalletId[memberAddress]].memberCounter--;
         memberWalletId[memberAddress] = 0;
+        //Erasing the wallet if it doesn't have at least one member left
+        if (wallet[memberWalletId[memberAddress]].memberCounter == 0) {
+            wallet[memberWalletId[memberAddress]].id = 0;
+            wallet[memberWalletId[memberAddress]].creationDate = 0;
+            wallet[memberWalletId[memberAddress]].name = "";
+            wallet[memberWalletId[memberAddress]].balance = 0;
+            wallet[memberWalletId[memberAddress]].memberCounter = 0;
+            wallet[memberWalletId[memberAddress]].ownerAddress = address(0x0);
+        }
     }
 
     function getWalletData(address memberAddress)
