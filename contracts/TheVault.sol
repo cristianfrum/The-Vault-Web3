@@ -80,6 +80,27 @@ contract TheVault {
         _;
     }
 
+    function getWalletMembersAddresses(address memberAddress)
+        public
+        view
+        returns (address[] memory)
+    {
+        address[] memory membersAddresses = new address[](
+            wallet[memberWalletId[memberAddress]].memberCounter
+        );
+
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i++
+        ) {
+            membersAddresses[i] = wallet[memberWalletId[memberAddress]]
+                .members[i]
+                .currentAddress;
+        }
+        return membersAddresses;
+    }
+
     function getWalletData(address memberAddress)
         public
         view
@@ -87,14 +108,10 @@ contract TheVault {
             uint8,
             address,
             uint256,
-            address[] memory,
             string[] memory,
             string[] memory
         )
     {
-        address[] memory membersAddresses = new address[](
-            wallet[memberWalletId[memberAddress]].memberCounter
-        );
         string[] memory membersFirstNames = new string[](
             wallet[memberWalletId[memberAddress]].memberCounter
         );
@@ -112,15 +129,11 @@ contract TheVault {
             membersLastNames[i] = wallet[memberWalletId[memberAddress]]
                 .members[i]
                 .lastName;
-            membersAddresses[i] = wallet[memberWalletId[memberAddress]]
-                .members[i]
-                .currentAddress;
         }
         return (
             memberWalletId[memberAddress],
             wallet[memberWalletId[memberAddress]].ownerAddress,
             wallet[memberWalletId[memberAddress]].balance,
-            membersAddresses,
             membersFirstNames,
             membersLastNames
         );
