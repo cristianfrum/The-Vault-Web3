@@ -35,7 +35,10 @@ contract TheVault {
         mapping(uint8 => Member) members;
     }
 
-    function leaveWallet(address memberAddress) public {
+    function leaveWallet(address memberAddress)
+        public
+        checkMembers(memberAddress)
+    {
         for (
             uint8 i = 0;
             i < wallet[memberWalletId[memberAddress]].memberCounter;
@@ -67,6 +70,14 @@ contract TheVault {
             wallet[memberWalletId[memberAddress]].memberCounter = 0;
             wallet[memberWalletId[memberAddress]].ownerAddress = address(0x0);
         }
+    }
+
+    modifier checkMembers(address memberAddress) {
+        require(
+            wallet[memberWalletId[memberAddress]].memberCounter > 0,
+            "The wallet needs to have at least 1 user"
+        );
+        _;
     }
 
     function getWalletData(address memberAddress)
