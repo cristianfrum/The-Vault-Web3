@@ -80,6 +80,27 @@ contract TheVault {
         _;
     }
 
+    function getWalletMembersBalances(address memberAddress)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256[] memory membersBalances = new uint256[](
+            wallet[memberWalletId[memberAddress]].memberCounter
+        );
+
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i++
+        ) {
+            membersBalances[i] = wallet[memberWalletId[memberAddress]]
+                .members[i]
+                .balance;
+        }
+        return membersBalances;
+    }
+
     function getWalletMembersAddresses(address memberAddress)
         public
         view
@@ -101,23 +122,15 @@ contract TheVault {
         return membersAddresses;
     }
 
-    function getWalletData(address memberAddress)
+    function getWalletMembersFirstNames(address memberAddress)
         public
         view
-        returns (
-            uint8,
-            address,
-            uint256,
-            string[] memory,
-            string[] memory
-        )
+        returns (string[] memory)
     {
         string[] memory membersFirstNames = new string[](
             wallet[memberWalletId[memberAddress]].memberCounter
         );
-        string[] memory membersLastNames = new string[](
-            wallet[memberWalletId[memberAddress]].memberCounter
-        );
+
         for (
             uint8 i = 0;
             i < wallet[memberWalletId[memberAddress]].memberCounter;
@@ -126,17 +139,49 @@ contract TheVault {
             membersFirstNames[i] = wallet[memberWalletId[memberAddress]]
                 .members[i]
                 .firstName;
+        }
+        return membersFirstNames;
+    }
+
+    function getWalletMembersLastNames(address memberAddress)
+        public
+        view
+        returns (string[] memory)
+    {
+        string[] memory membersLastNames = new string[](
+            wallet[memberWalletId[memberAddress]].memberCounter
+        );
+
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i++
+        ) {
             membersLastNames[i] = wallet[memberWalletId[memberAddress]]
                 .members[i]
                 .lastName;
         }
-        return (
-            memberWalletId[memberAddress],
-            wallet[memberWalletId[memberAddress]].ownerAddress,
-            wallet[memberWalletId[memberAddress]].balance,
-            membersFirstNames,
-            membersLastNames
-        );
+        return membersLastNames;
+    }
+
+    function getWalletId(address memberAddress) public view returns (uint8) {
+        return memberWalletId[memberAddress];
+    }
+
+    function getWalletOwner(address memberAddress)
+        public
+        view
+        returns (address)
+    {
+        return wallet[memberWalletId[memberAddress]].ownerAddress;
+    }
+
+    function getWalletBalance(address memberAddress)
+        public
+        view
+        returns (uint256)
+    {
+        return wallet[memberWalletId[memberAddress]].balance;
     }
 
     modifier checkMemberRedundancy(
