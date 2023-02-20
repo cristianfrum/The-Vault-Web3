@@ -8,7 +8,7 @@ contract TheVault {
 
     struct Transaction {
         uint256 date;
-        uint8 value;
+        uint256 value;
         address sender;
         address receiver;
     }
@@ -33,6 +33,38 @@ contract TheVault {
         string ownerLastName;
         // Transaction[] transactionHistory;
         mapping(uint8 => Member) members;
+        Transaction[] transactions;
+    }
+
+    function sendFunds(address senderAddress, address receiverAddress)
+        public
+        payable
+    {
+        wallet[memberWalletId[receiverAddress]].balance += msg.value;
+        for (
+            uint8 i = 0;
+            i < wallet[memberWalletId[receiverAddress]].memberCounter;
+            i++
+        ) {
+            if (
+                wallet[memberWalletId[receiverAddress]]
+                    .members[i]
+                    .currentAddress == receiverAddress
+            ) {
+                wallet[memberWalletId[receiverAddress]]
+                    .members[i]
+                    .balance += msg.value;
+            }
+        }
+        Transaction memory currentTransaction = Transaction(
+            block.timestamp,
+            msg.value,
+            senderAddress,
+            receiverAddress
+        );
+        wallet[memberWalletId[receiverAddress]].transactions.push(
+            currentTransaction
+        );
     }
 
     function leaveWallet(address memberAddress)
@@ -78,6 +110,14 @@ contract TheVault {
             "The wallet needs to have at least 1 user"
         );
         _;
+    }
+
+    function getWalletTransactions(address memberAddress)
+        public
+        view
+        returns (Transaction[] memory)
+    {
+        return wallet[memberWalletId[memberAddress]].transactions;
     }
 
     function getWalletMembersBalances(address memberAddress)
