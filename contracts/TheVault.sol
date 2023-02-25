@@ -3,14 +3,15 @@ pragma solidity ^0.8.9;
 
 contract TheVault {
     mapping(uint8 => Wallet) public wallet;
-    mapping(address => uint8) public memberWalletId;
+    mapping(address => uint8) public walletMemberId;
     uint8 public walletCounter;
 
     struct Transaction {
         uint256 date;
         uint256 value;
-        address sender;
-        address receiver;
+        address senderAddress;
+        address recipientAddress;
+        string txType;
     }
 
     struct Member {
@@ -31,27 +32,107 @@ contract TheVault {
         address ownerAddress;
         string ownerFirstName;
         string ownerLastName;
-        // Transaction[] transactionHistory;
         mapping(uint8 => Member) members;
         Transaction[] transactions;
     }
 
-    function sendFunds(address senderAddress, address receiverAddress)
-        public
-        payable
-    {
-        wallet[memberWalletId[receiverAddress]].balance += msg.value;
+    modifier checkEthAmount(uint256 amount) {
+        require(amount > 0, "The amount needs to be higher than 0");
+        _;
+    }
+
+    modifier checkContractBalance(uint256 amount) {
+        require(
+            address(this).balance >= amount,
+            "Insufficient funds in the contract"
+        );
+        _;
+    }
+
+    modifier checkWalletBalance(uint256 amount) {
+        require(
+            wallet[walletMemberId[msg.sender]].balance >= amount,
+            "The wallet does not have enough funds"
+        );
+        _;
+    }
+
+    modifier checkMemberBalance(uint256 amount) {
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[receiverAddress]].memberCounter;
+            i < wallet[walletMemberId[msg.sender]].memberCounter;
             i++
         ) {
             if (
-                wallet[memberWalletId[receiverAddress]]
-                    .members[i]
-                    .currentAddress == receiverAddress
+                msg.sender ==
+                wallet[walletMemberId[msg.sender]].members[i].currentAddress
             ) {
-                wallet[memberWalletId[receiverAddress]]
+                require(
+                    wallet[walletMemberId[msg.sender]].members[i].balance >=
+                        amount,
+                    "You do not have enough funds"
+                );
+            }
+        }
+        _;
+    }
+
+    function withdrawMemberFunds(uint256 amount)
+        public
+        checkEthAmount(amount)
+        checkContractBalance(amount)
+        checkMemberBalance(amount)
+        checkWalletBalance(amount)
+    {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Failed to send Ether to the recipient address");
+        if (success) {
+            wallet[walletMemberId[msg.sender]].balance -= amount;
+            for (
+                uint8 i = 0;
+                i < wallet[walletMemberId[msg.sender]].memberCounter;
+                i++
+            ) {
+                if (
+                    wallet[walletMemberId[msg.sender]]
+                        .members[i]
+                        .currentAddress == msg.sender
+                ) {
+                    wallet[walletMemberId[msg.sender]]
+                        .members[i]
+                        .balance -= amount;
+                }
+            }
+            Transaction memory currentTransaction = Transaction(
+                block.timestamp,
+                amount,
+                msg.sender,
+                msg.sender,
+                "withdrawUserToUser"
+            );
+            wallet[walletMemberId[msg.sender]].transactions.push(
+                currentTransaction
+            );
+        }
+    }
+
+    function sendFundsToMember(address recipientAddress)
+        public
+        payable
+        checkEthAmount(msg.value)
+    {
+        wallet[walletMemberId[recipientAddress]].balance += msg.value;
+        for (
+            uint8 i = 0;
+            i < wallet[walletMemberId[recipientAddress]].memberCounter;
+            i++
+        ) {
+            if (
+                wallet[walletMemberId[recipientAddress]]
+                    .members[i]
+                    .currentAddress == recipientAddress
+            ) {
+                wallet[walletMemberId[recipientAddress]]
                     .members[i]
                     .balance += msg.value;
             }
@@ -59,12 +140,49 @@ contract TheVault {
         Transaction memory currentTransaction = Transaction(
             block.timestamp,
             msg.value,
-            senderAddress,
-            receiverAddress
+            msg.sender,
+            recipientAddress,
+            "sendUserToUser"
         );
-        wallet[memberWalletId[receiverAddress]].transactions.push(
+        wallet[walletMemberId[recipientAddress]].transactions.push(
             currentTransaction
         );
+    }
+
+    function sendFundsToWallet() public payable checkEthAmount(msg.value) {
+        wallet[walletMemberId[msg.sender]].balance += msg.value;
+        Transaction memory currentTransaction = Transaction(
+            block.timestamp,
+            msg.value,
+            msg.sender,
+            address(this),
+            "sendUserToWallet"
+        );
+        wallet[walletMemberId[msg.sender]].transactions.push(
+            currentTransaction
+        );
+    }
+
+    function withdrawFundsFromWallet(uint256 amount)
+        public
+        checkEthAmount(amount)
+        checkContractBalance(amount)
+        checkWalletBalance(amount)
+    {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        if (success) {
+            wallet[walletMemberId[msg.sender]].balance -= amount;
+            Transaction memory currentTransaction = Transaction(
+                block.timestamp,
+                amount,
+                address(this),
+                msg.sender,
+                "withdrawWalletToUser"
+            );
+            wallet[walletMemberId[msg.sender]].transactions.push(
+                currentTransaction
+            );
+        }
     }
 
     function leaveWallet(address memberAddress)
@@ -73,15 +191,15 @@ contract TheVault {
     {
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
             i++
         ) {
             if (
-                wallet[memberWalletId[memberAddress]]
+                wallet[walletMemberId[memberAddress]]
                     .members[i]
                     .currentAddress == memberAddress
             ) {
-                wallet[memberWalletId[memberAddress]].members[i] = Member(
+                wallet[walletMemberId[memberAddress]].members[i] = Member(
                     "",
                     "",
                     address(0x0),
@@ -91,22 +209,22 @@ contract TheVault {
                 );
             }
         }
-        wallet[memberWalletId[memberAddress]].memberCounter--;
-        memberWalletId[memberAddress] = 0;
+        wallet[walletMemberId[memberAddress]].memberCounter--;
+        walletMemberId[memberAddress] = 0;
         //Erasing the wallet if it doesn't have at least one member left
-        if (wallet[memberWalletId[memberAddress]].memberCounter == 0) {
-            wallet[memberWalletId[memberAddress]].id = 0;
-            wallet[memberWalletId[memberAddress]].creationDate = 0;
-            wallet[memberWalletId[memberAddress]].name = "";
-            wallet[memberWalletId[memberAddress]].balance = 0;
-            wallet[memberWalletId[memberAddress]].memberCounter = 0;
-            wallet[memberWalletId[memberAddress]].ownerAddress = address(0x0);
+        if (wallet[walletMemberId[memberAddress]].memberCounter == 0) {
+            wallet[walletMemberId[memberAddress]].id = 0;
+            wallet[walletMemberId[memberAddress]].creationDate = 0;
+            wallet[walletMemberId[memberAddress]].name = "";
+            wallet[walletMemberId[memberAddress]].balance = 0;
+            wallet[walletMemberId[memberAddress]].memberCounter = 0;
+            wallet[walletMemberId[memberAddress]].ownerAddress = address(0x0);
         }
     }
 
     modifier checkMembers(address memberAddress) {
         require(
-            wallet[memberWalletId[memberAddress]].memberCounter > 0,
+            wallet[walletMemberId[memberAddress]].memberCounter > 0,
             "The wallet needs to have at least 1 user"
         );
         _;
@@ -117,7 +235,12 @@ contract TheVault {
         view
         returns (Transaction[] memory)
     {
-        return wallet[memberWalletId[memberAddress]].transactions;
+        Transaction[] memory temporaryList = new Transaction[](
+            wallet[walletMemberId[memberAddress]].transactions.length
+        );
+
+        temporaryList = wallet[walletMemberId[memberAddress]].transactions;
+        return temporaryList;
     }
 
     function getWalletMembersBalances(address memberAddress)
@@ -126,15 +249,15 @@ contract TheVault {
         returns (uint256[] memory)
     {
         uint256[] memory membersBalances = new uint256[](
-            wallet[memberWalletId[memberAddress]].memberCounter
+            wallet[walletMemberId[memberAddress]].memberCounter
         );
 
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
             i++
         ) {
-            membersBalances[i] = wallet[memberWalletId[memberAddress]]
+            membersBalances[i] = wallet[walletMemberId[memberAddress]]
                 .members[i]
                 .balance;
         }
@@ -147,15 +270,15 @@ contract TheVault {
         returns (address[] memory)
     {
         address[] memory membersAddresses = new address[](
-            wallet[memberWalletId[memberAddress]].memberCounter
+            wallet[walletMemberId[memberAddress]].memberCounter
         );
 
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
             i++
         ) {
-            membersAddresses[i] = wallet[memberWalletId[memberAddress]]
+            membersAddresses[i] = wallet[walletMemberId[memberAddress]]
                 .members[i]
                 .currentAddress;
         }
@@ -168,15 +291,15 @@ contract TheVault {
         returns (string[] memory)
     {
         string[] memory membersFirstNames = new string[](
-            wallet[memberWalletId[memberAddress]].memberCounter
+            wallet[walletMemberId[memberAddress]].memberCounter
         );
 
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
             i++
         ) {
-            membersFirstNames[i] = wallet[memberWalletId[memberAddress]]
+            membersFirstNames[i] = wallet[walletMemberId[memberAddress]]
                 .members[i]
                 .firstName;
         }
@@ -189,15 +312,15 @@ contract TheVault {
         returns (string[] memory)
     {
         string[] memory membersLastNames = new string[](
-            wallet[memberWalletId[memberAddress]].memberCounter
+            wallet[walletMemberId[memberAddress]].memberCounter
         );
 
         for (
             uint8 i = 0;
-            i < wallet[memberWalletId[memberAddress]].memberCounter;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
             i++
         ) {
-            membersLastNames[i] = wallet[memberWalletId[memberAddress]]
+            membersLastNames[i] = wallet[walletMemberId[memberAddress]]
                 .members[i]
                 .lastName;
         }
@@ -205,7 +328,15 @@ contract TheVault {
     }
 
     function getWalletId(address memberAddress) public view returns (uint8) {
-        return memberWalletId[memberAddress];
+        return walletMemberId[memberAddress];
+    }
+
+    function getWalletName(address memberAddress)
+        public
+        view
+        returns (string memory)
+    {
+        return wallet[walletMemberId[memberAddress]].name;
     }
 
     function getWalletOwner(address memberAddress)
@@ -213,7 +344,7 @@ contract TheVault {
         view
         returns (address)
     {
-        return wallet[memberWalletId[memberAddress]].ownerAddress;
+        return wallet[walletMemberId[memberAddress]].ownerAddress;
     }
 
     function getWalletBalance(address memberAddress)
@@ -221,7 +352,7 @@ contract TheVault {
         view
         returns (uint256)
     {
-        return wallet[memberWalletId[memberAddress]].balance;
+        return wallet[walletMemberId[memberAddress]].balance;
     }
 
     modifier checkMemberRedundancy(
@@ -232,7 +363,7 @@ contract TheVault {
 
         for (uint256 i = 0; i < memberCounter; i++) {
             require(
-                memberWalletId[membersAddresses[i]] == 0,
+                walletMemberId[membersAddresses[i]] == 0,
                 "One or more users have already joined another wallet"
             );
             for (uint256 j = 0; j < i; j++) {
@@ -277,11 +408,12 @@ contract TheVault {
     )
         public
         payable
+        checkEthAmount(msg.value)
         checkMemberRedundancy(membersAddresses, membersFirstNames.length)
         checkWalletName(walletName)
         checkMemberNames(membersFirstNames, membersLastNames)
     {
-        // wallet id starts with 10 instead of 0 because users with memberWalletId set to 0 do not exist yet
+        // wallet id starts with 10 instead of 0 because users with walletMemberId set to 0 do not exist yet
         Wallet storage newWallet = wallet[walletCounter + 10];
         newWallet.id = walletCounter + 10;
         newWallet.creationDate = block.timestamp;
@@ -301,7 +433,7 @@ contract TheVault {
             newMember.withdrawalLimit = 5;
             newWallet.memberCounter++;
 
-            memberWalletId[newMember.currentAddress] = newMember.walletId;
+            walletMemberId[newMember.currentAddress] = newMember.walletId;
         }
         walletCounter++;
     }
