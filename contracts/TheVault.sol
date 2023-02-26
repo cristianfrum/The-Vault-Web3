@@ -28,6 +28,7 @@ contract TheVault {
         uint256 creationDate;
         string name;
         uint256 balance;
+        uint256 publicFunds;
         uint8 memberCounter;
         address ownerAddress;
         string ownerFirstName;
@@ -52,6 +53,14 @@ contract TheVault {
     modifier checkWalletBalance(uint256 amount) {
         require(
             wallet[walletMemberId[msg.sender]].balance >= amount,
+            "The wallet does not have enough funds"
+        );
+        _;
+    }
+
+    modifier checkWalletPublicFunds(uint256 amount) {
+        require(
+            wallet[walletMemberId[msg.sender]].publicFunds >= amount,
             "The wallet does not have enough funds"
         );
         _;
@@ -150,7 +159,7 @@ contract TheVault {
     }
 
     function sendFundsToWallet() public payable checkEthAmount(msg.value) {
-        wallet[walletMemberId[msg.sender]].balance += msg.value;
+        wallet[walletMemberId[msg.sender]].publicFunds += msg.value;
         Transaction memory currentTransaction = Transaction(
             block.timestamp,
             msg.value,
@@ -167,11 +176,11 @@ contract TheVault {
         public
         checkEthAmount(amount)
         checkContractBalance(amount)
-        checkWalletBalance(amount)
+        checkWalletPublicFunds(amount)
     {
         (bool success, ) = msg.sender.call{value: amount}("");
         if (success) {
-            wallet[walletMemberId[msg.sender]].balance -= amount;
+            wallet[walletMemberId[msg.sender]].publicFunds -= amount;
             Transaction memory currentTransaction = Transaction(
                 block.timestamp,
                 amount,
@@ -355,6 +364,14 @@ contract TheVault {
         return wallet[walletMemberId[memberAddress]].balance;
     }
 
+    function getWalletPublicFunds(address memberAddress)
+        public
+        view
+        returns (uint256)
+    {
+        return wallet[walletMemberId[memberAddress]].publicFunds;
+    }
+
     modifier checkMemberRedundancy(
         address[] memory membersAddresses,
         uint256 memberCounter
@@ -418,7 +435,7 @@ contract TheVault {
         newWallet.id = walletCounter + 10;
         newWallet.creationDate = block.timestamp;
         newWallet.name = walletName;
-        newWallet.balance = msg.value;
+        newWallet.publicFunds = msg.value;
         newWallet.ownerAddress = membersAddresses[0];
         newWallet.ownerFirstName = membersFirstNames[0];
         newWallet.ownerLastName = membersLastNames[0];
