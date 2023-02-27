@@ -20,7 +20,7 @@ contract TheVault {
         address currentAddress;
         uint8 walletId;
         uint256 balance;
-        uint8 withdrawalLimit;
+        uint256 withdrawalLimit;
     }
 
     struct Wallet {
@@ -86,45 +86,6 @@ contract TheVault {
         _;
     }
 
-    function withdrawMemberFunds(uint256 amount)
-        public
-        checkEthAmount(amount)
-        checkContractBalance(amount)
-        checkMemberBalance(amount)
-        checkWalletBalance(amount)
-    {
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Failed to send Ether to the recipient address");
-        if (success) {
-            wallet[walletMemberId[msg.sender]].balance -= amount;
-            for (
-                uint8 i = 0;
-                i < wallet[walletMemberId[msg.sender]].memberCounter;
-                i++
-            ) {
-                if (
-                    wallet[walletMemberId[msg.sender]]
-                        .members[i]
-                        .currentAddress == msg.sender
-                ) {
-                    wallet[walletMemberId[msg.sender]]
-                        .members[i]
-                        .balance -= amount;
-                }
-            }
-            Transaction memory currentTransaction = Transaction(
-                block.timestamp,
-                amount,
-                msg.sender,
-                msg.sender,
-                "withdrawUserToUser"
-            );
-            wallet[walletMemberId[msg.sender]].transactions.push(
-                currentTransaction
-            );
-        }
-    }
-
     function sendFundsToMember(address recipientAddress)
         public
         payable
@@ -172,6 +133,45 @@ contract TheVault {
         );
     }
 
+    function withdrawMemberFunds(uint256 amount)
+        public
+        checkEthAmount(amount)
+        checkContractBalance(amount)
+        checkMemberBalance(amount)
+        checkWalletBalance(amount)
+    {
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Failed to send Ether to the recipient address");
+        if (success) {
+            wallet[walletMemberId[msg.sender]].balance -= amount;
+            for (
+                uint8 i = 0;
+                i < wallet[walletMemberId[msg.sender]].memberCounter;
+                i++
+            ) {
+                if (
+                    wallet[walletMemberId[msg.sender]]
+                        .members[i]
+                        .currentAddress == msg.sender
+                ) {
+                    wallet[walletMemberId[msg.sender]]
+                        .members[i]
+                        .balance -= amount;
+                }
+            }
+            Transaction memory currentTransaction = Transaction(
+                block.timestamp,
+                amount,
+                msg.sender,
+                msg.sender,
+                "withdrawUserToUser"
+            );
+            wallet[walletMemberId[msg.sender]].transactions.push(
+                currentTransaction
+            );
+        }
+    }
+
     function withdrawFundsFromWallet(uint256 amount)
         public
         checkEthAmount(amount)
@@ -191,6 +191,27 @@ contract TheVault {
             wallet[walletMemberId[msg.sender]].transactions.push(
                 currentTransaction
             );
+        }
+    }
+
+    function setWithdrawalLimit(address memberAddress, uint256 withdrawalLimit)
+        public
+        checkEthAmount(withdrawalLimit)
+    {
+        for (
+            uint8 i = 0;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
+            i++
+        ) {
+            if (
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .currentAddress == memberAddress
+            ) {
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .withdrawalLimit = withdrawalLimit;
+            }
         }
     }
 
@@ -340,6 +361,27 @@ contract TheVault {
         return walletMemberId[memberAddress];
     }
 
+    function getWalletMembersWithdrawalLimits(address memberAddress)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256[] memory withdrawalLimits = new uint256[](
+            wallet[walletMemberId[memberAddress]].memberCounter
+        );
+
+        for (
+            uint8 i = 0;
+            i < wallet[walletMemberId[memberAddress]].memberCounter;
+            i++
+        ) {
+            withdrawalLimits[i] = wallet[walletMemberId[memberAddress]]
+                .members[i]
+                .withdrawalLimit;
+        }
+        return withdrawalLimits;
+    }
+
     function getWalletName(address memberAddress)
         public
         view
@@ -412,6 +454,23 @@ contract TheVault {
         _;
     }
 
+    modifier checkWithdrawalLimits(
+        uint256[] memory membersWithdrawalLimits,
+        string[] memory membersLastNames
+    ) {
+        require(
+            membersWithdrawalLimits.length == membersLastNames.length,
+            "Every user needs to have a monthly withdrawal limit set up"
+        );
+        for (uint256 i = 0; i < membersWithdrawalLimits.length; i++) {
+            require(
+                membersWithdrawalLimits[i] >= 0,
+                "The withdrawal limits can not be negative"
+            );
+        }
+        _;
+    }
+
     modifier checkWalletName(string memory walletName) {
         require(bytes(walletName).length != 0, "The wallet needs a name");
         _;
@@ -421,7 +480,8 @@ contract TheVault {
         string memory walletName,
         address[] memory membersAddresses,
         string[] memory membersFirstNames,
-        string[] memory membersLastNames
+        string[] memory membersLastNames,
+        uint256[] memory membersWithdrawalLimits
     )
         public
         payable
@@ -429,6 +489,7 @@ contract TheVault {
         checkMemberRedundancy(membersAddresses, membersFirstNames.length)
         checkWalletName(walletName)
         checkMemberNames(membersFirstNames, membersLastNames)
+        checkWithdrawalLimits(membersWithdrawalLimits, membersLastNames)
     {
         // wallet id starts with 10 instead of 0 because users with walletMemberId set to 0 do not exist yet
         Wallet storage newWallet = wallet[walletCounter + 10];
@@ -447,7 +508,7 @@ contract TheVault {
             newMember.currentAddress = membersAddresses[i];
             newMember.walletId = walletCounter + 10;
             newMember.balance = 0;
-            newMember.withdrawalLimit = 5;
+            newMember.withdrawalLimit = membersWithdrawalLimits[i];
             newWallet.memberCounter++;
 
             walletMemberId[newMember.currentAddress] = newMember.walletId;
