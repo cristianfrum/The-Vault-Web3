@@ -20,11 +20,9 @@ async function main() {
 
   await contract.deployed();
 
-  console.log(
-    `Contract deployed to ${contract.address}`
-  );
+  console.log(`Contract deployed to ${contract.address}`);
 
-  await sleep(60 * 1000);
+  await sleep(60 * 2000);
 
   await hre.run("verify:verify", {
     address: contract.address,

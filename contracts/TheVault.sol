@@ -133,12 +133,51 @@ contract TheVault {
         );
     }
 
-    function withdrawMemberFunds(uint256 amount)
+    modifier checkWithdrawalLimit(uint256 amount, uint256 limit) {
+        uint256 withdrawnAmount = 0;
+        require(
+            amount < limit,
+            "The withdrawn amount exceeds the hourly limit"
+        );
+        for (
+            uint8 i = uint8(
+                wallet[walletMemberId[msg.sender]].transactions.length
+            ) - 1;
+            i >= 0;
+            i--
+        ) {
+            string memory txType = string(
+                wallet[walletMemberId[msg.sender]].transactions[i].txType
+            );
+            if (
+                keccak256(abi.encodePacked(txType)) ==
+                keccak256(abi.encodePacked("withdrawUserToUser")) &&
+                wallet[walletMemberId[msg.sender]]
+                    .transactions[i]
+                    .recipientAddress ==
+                msg.sender &&
+                (block.timestamp <
+                    wallet[walletMemberId[msg.sender]].transactions[i].date +
+                        3600)
+            ) {
+                withdrawnAmount += wallet[walletMemberId[msg.sender]]
+                    .transactions[i]
+                    .value;
+            }
+        }
+
+        require(
+            withdrawnAmount + amount < limit,
+            "The withdrawal limit has exceeded"
+        );
+        _;
+    }
+
+    function withdrawMemberFunds(uint256 amount, uint256 limit)
         public
+        checkWithdrawalLimit(amount, limit)
         checkEthAmount(amount)
-        checkContractBalance(amount)
         checkMemberBalance(amount)
-        checkWalletBalance(amount)
     {
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Failed to send Ether to the recipient address");
@@ -191,27 +230,6 @@ contract TheVault {
             wallet[walletMemberId[msg.sender]].transactions.push(
                 currentTransaction
             );
-        }
-    }
-
-    function setWithdrawalLimit(address memberAddress, uint256 withdrawalLimit)
-        public
-        checkEthAmount(withdrawalLimit)
-    {
-        for (
-            uint8 i = 0;
-            i < wallet[walletMemberId[memberAddress]].memberCounter;
-            i++
-        ) {
-            if (
-                wallet[walletMemberId[memberAddress]]
-                    .members[i]
-                    .currentAddress == memberAddress
-            ) {
-                wallet[walletMemberId[memberAddress]]
-                    .members[i]
-                    .withdrawalLimit = withdrawalLimit;
-            }
         }
     }
 
