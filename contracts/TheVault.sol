@@ -133,49 +133,76 @@ contract TheVault {
         );
     }
 
-    modifier checkWithdrawalLimit(uint256 amount, uint256 limit) {
+    function checkWithdrawalLimit(uint256 amount, uint256 limit)
+        public
+        view
+        returns (bool)
+    {
         uint256 withdrawnAmount = 0;
-        require(
-            amount < limit,
-            "The withdrawn amount exceeds the hourly limit"
+        if (amount > limit) {
+            return false;
+        }
+        Transaction[] memory temporaryList = new Transaction[](
+            wallet[walletMemberId[msg.sender]].transactions.length
         );
-        for (
-            uint8 i = uint8(
-                wallet[walletMemberId[msg.sender]].transactions.length
-            ) - 1;
-            i >= 0;
-            i--
-        ) {
-            string memory txType = string(
-                wallet[walletMemberId[msg.sender]].transactions[i].txType
-            );
+        if (temporaryList.length > 0) {
+            for (uint256 i = temporaryList.length - 1; i > 0; i--) {
+                if (
+                    keccak256(
+                        abi.encodePacked(
+                            wallet[walletMemberId[msg.sender]]
+                                .transactions[i]
+                                .txType
+                        )
+                    ) ==
+                    keccak256(abi.encodePacked("withdrawUserToUser")) &&
+                    wallet[walletMemberId[msg.sender]]
+                        .transactions[i]
+                        .recipientAddress ==
+                    msg.sender &&
+                    (block.timestamp <
+                        wallet[walletMemberId[msg.sender]]
+                            .transactions[i]
+                            .date +
+                            3600)
+                ) {
+                    withdrawnAmount += wallet[walletMemberId[msg.sender]]
+                        .transactions[i]
+                        .value;
+                }
+            }
+
             if (
-                keccak256(abi.encodePacked(txType)) ==
+                keccak256(
+                    abi.encodePacked(
+                        wallet[walletMemberId[msg.sender]]
+                            .transactions[0]
+                            .txType
+                    )
+                ) ==
                 keccak256(abi.encodePacked("withdrawUserToUser")) &&
                 wallet[walletMemberId[msg.sender]]
-                    .transactions[i]
+                    .transactions[0]
                     .recipientAddress ==
                 msg.sender &&
                 (block.timestamp <
-                    wallet[walletMemberId[msg.sender]].transactions[i].date +
+                    wallet[walletMemberId[msg.sender]].transactions[0].date +
                         3600)
             ) {
                 withdrawnAmount += wallet[walletMemberId[msg.sender]]
-                    .transactions[i]
+                    .transactions[0]
                     .value;
             }
         }
 
-        require(
-            withdrawnAmount + amount < limit,
-            "The withdrawal limit has exceeded"
-        );
-        _;
+        if (withdrawnAmount + amount > limit) {
+            return false;
+        }
+        return true;
     }
 
-    function withdrawMemberFunds(uint256 amount, uint256 limit)
+    function withdrawMemberFunds(uint256 amount)
         public
-        checkWithdrawalLimit(amount, limit)
         checkEthAmount(amount)
         checkMemberBalance(amount)
     {
