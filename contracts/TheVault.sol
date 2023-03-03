@@ -264,6 +264,7 @@ contract TheVault {
         public
         checkMembers(memberAddress)
     {
+        uint8 index;
         for (
             uint8 i = 0;
             i < wallet[walletMemberId[memberAddress]].memberCounter;
@@ -274,14 +275,52 @@ contract TheVault {
                     .members[i]
                     .currentAddress == memberAddress
             ) {
-                wallet[walletMemberId[memberAddress]].members[i] = Member(
-                    "",
-                    "",
-                    address(0x0),
-                    0,
-                    0,
-                    0
-                );
+                index = i;
+                if (
+                    i == wallet[walletMemberId[memberAddress]].memberCounter - 1
+                ) {
+                    wallet[walletMemberId[memberAddress]].members[i] = Member(
+                        "",
+                        "",
+                        address(0x0),
+                        0,
+                        0,
+                        0
+                    );
+                }
+            }
+        }
+        if (index != wallet[walletMemberId[memberAddress]].memberCounter - 1) {
+            for (
+                uint8 i = index;
+                i < wallet[walletMemberId[memberAddress]].memberCounter - 1;
+                i++
+            ) {
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .firstName = wallet[walletMemberId[memberAddress]]
+                    .members[i + 1]
+                    .firstName;
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .lastName = wallet[walletMemberId[memberAddress]]
+                    .members[i + 1]
+                    .lastName;
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .currentAddress = wallet[walletMemberId[memberAddress]]
+                    .members[i + 1]
+                    .currentAddress;
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .balance = wallet[walletMemberId[memberAddress]]
+                    .members[i + 1]
+                    .balance;
+                wallet[walletMemberId[memberAddress]]
+                    .members[i]
+                    .withdrawalLimit = wallet[walletMemberId[memberAddress]]
+                    .members[i + 1]
+                    .withdrawalLimit;
             }
         }
         wallet[walletMemberId[memberAddress]].memberCounter--;
