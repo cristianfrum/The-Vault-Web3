@@ -1,13 +1,13 @@
-# Sample Hardhat Project
+Welcome to the vault!
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+The vault enables multiple users to join a wallet. Here is the list of the benefits:
 
-Try running some of the following tasks:
+- Each wallet has public funds that can be withdrawn by each member of the wallet with no limitations.
+- When a wallet is created, it has an owner, members and hourly withdrawal limits set for each member.
+- The wallet enables each member to have it's own private ETH storage
+- Each wallet has a transaction list that displays all the internal and external transactions
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
-```
+Use cases:
+
+- A family wants to save some money and set up withdrawal limits for each member, but also share a public fund that is meant to help any member in need.
+- School groups that have a public fund, but each parent wants to make sure that the children do not spend more than allowed.
